@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>wojak9's movies search</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: #0a0a0a;
+            background-image:
+                radial-gradient(circle at 20% 80%, rgba(120, 119, 198, 0.3) 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, rgba(255, 119, 198, 0.15) 0%, transparent 50%),
+                radial-gradient(circle at 40% 40%, rgba(120, 119, 198, 0.1) 0%, transparent 50%);
+        }
+
+        .movie-card {
+            transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            background: rgba(20, 20, 20, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .movie-card:hover {
+            transform: scale(1.05) translateY(-10px);
+            background: rgba(30, 30, 30, 0.9);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+        }
+
+        .loading-spinner {
+            border: 3px solid rgba(255, 255, 255, 0.1);
+            border-top: 3px solid #e50914;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .fade-in {
+            animation: fadeIn 0.6s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .search-container {
+            background: rgba(15, 15, 15, 0.9);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .dark-card {
+            background: rgba(20, 20, 20, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+        }
+
+        .netflix-red {
+            background: #e50914;
+        }
+
+        .netflix-red:hover {
+            background: #f40612;
+        }
+
+        .poster-overlay {
+            background: linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.3) 50%, transparent 100%);
+        }
+
+        .modal-backdrop {
+            background: rgba(0, 0, 0, 0.95);
+            backdrop-filter: blur(5px);
+        }
+
+        .rating-badge {
+            background: linear-gradient(45deg, #f39c12, #e67e22);
+        }
+
+        .type-badge {
+            background: linear-gradient(45deg, #3498db, #2980b9);
+        }
+
+        .year-badge {
+            background: linear-gradient(45deg, #27ae60, #229954);
+        }
+
+        .scrollbar-hide {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+
+        .scrollbar-hide::-webkit-scrollbar {
+            display: none;
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-black text-white">
+    <!-- Header -->
+    <header class="bg-black/90 backdrop-blur-md sticky top-0 z-50 border-b border-gray-800">
+        <div class="container mx-auto px-6 py-6">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-4">
+                    <div class="w-10 h-10 netflix-red rounded-lg flex items-center justify-center">
+                        <i class="fas fa-play text-white text-lg"></i>
+                    </div>
+                    <h1 class="text-2xl font-bold text-white">
+                        wojak9's movies search
+                    </h1>
+                </div>
+                <div class="flex items-center gap-4">
+                    <!-- Desktop Navigation -->
+                    <div class="hidden md:flex items-center gap-6 text-gray-300">
+                        <span id="moviesNav" class="hover:text-white cursor-pointer transition-colors px-3 py-2 rounded-lg hover:bg-gray-800">Movies</span>
+                        <span id="tvShowsNav" class="hover:text-white cursor-pointer transition-colors px-3 py-2 rounded-lg hover:bg-gray-800">TV Shows</span>
+                        <span id="popularNav" class="hover:text-white cursor-pointer transition-colors px-3 py-2 rounded-lg hover:bg-gray-800">Popular</span>
+                        <span id="watchlistNav" class="hover:text-white cursor-pointer transition-colors px-3 py-2 rounded-lg hover:bg-gray-800 flex items-center gap-2">
+                            <i class="fas fa-bookmark"></i>
+                            My List (<span id="watchlistCount">0</span>)
+                        </span>
+                    </div>
+
+                    <!-- Mobile Menu Button -->
+                    <button id="mobileMenuBtn" class="md:hidden text-gray-300 hover:text-white p-2">
+                        <i class="fas fa-bars text-xl"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Mobile Navigation Menu -->
+            <div id="mobileMenu" class="hidden md:hidden bg-gray-900 border-t border-gray-800">
+                <div class="container mx-auto px-6 py-4">
+                    <div class="flex flex-col gap-4">
+                        <span id="moviesNavMobile" class="text-gray-300 hover:text-white cursor-pointer transition-colors px-3 py-2 rounded-lg hover:bg-gray-800">Movies</span>
+                        <span id="tvShowsNavMobile" class="text-gray-300 hover:text-white cursor-pointer transition-colors px-3 py-2 rounded-lg hover:bg-gray-800">TV Shows</span>
+                        <span id="popularNavMobile" class="text-gray-300 hover:text-white cursor-pointer transition-colors px-3 py-2 rounded-lg hover:bg-gray-800">Popular</span>
+                        <span id="watchlistNavMobile" class="text-gray-300 hover:text-white cursor-pointer transition-colors px-3 py-2 rounded-lg hover:bg-gray-800 flex items-center gap-2">
+                            <i class="fas fa-bookmark"></i>
+                            My List (<span id="watchlistCountMobile">0</span>)
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="container mx-auto px-4 py-8">
+        <!-- Hero Section -->
+        <div class="relative mb-16">
+            <div class="max-w-4xl mx-auto text-center mb-12">
+                <h2 class="text-5xl md:text-6xl font-bold mb-6 bg-gradient-to-r from-white via-gray-200 to-gray-400 bg-clip-text text-transparent">
+                    Discover Movies & Shows
+                </h2>
+                <p class="text-xl text-gray-400 mb-8">
+                    Search through millions of movies, TV series, and episodes
+                </p>
+            </div>
+
+            <!-- Search Section -->
+            <div class="max-w-3xl mx-auto mb-8">
+                <div class="search-container rounded-2xl p-8 shadow-2xl">
+                    <div class="relative mb-6">
+                        <input
+                            type="text"
+                            id="searchInput"
+                            placeholder="What do you want to watch today?"
+                            class="w-full px-6 py-5 pl-14 text-lg rounded-xl border border-gray-700 bg-gray-900/50 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-all"
+                        >
+                        <i class="fas fa-search absolute left-5 top-1/2 transform -translate-y-1/2 text-gray-400 text-lg"></i>
+                        <button
+                            id="searchBtn"
+                            class="absolute right-2 top-1/2 transform -translate-y-1/2 netflix-red hover:bg-red-600 text-white px-8 py-3 rounded-lg font-semibold transition-all duration-300 hover:scale-105 shadow-lg"
+                        >
+                            <i class="fas fa-search mr-2"></i>
+                            Search
+                        </button>
+                    </div>
+
+                    <!-- Filter Options -->
+                    <div class="flex flex-wrap gap-4 justify-center">
+                        <select id="typeFilter" class="px-6 py-3 rounded-lg bg-gray-800 text-white border border-gray-600 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-all">
+                            <option value="">All Types</option>
+                            <option value="movie">Movies</option>
+                            <option value="series">TV Series</option>
+                            <option value="episode">Episodes</option>
+                        </select>
+                        <select id="yearFilter" class="px-6 py-3 rounded-lg bg-gray-800 text-white border border-gray-600 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-all">
+                            <option value="">All Years</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Loading Spinner -->
+        <div id="loading" class="hidden flex justify-center items-center py-12">
+            <div class="loading-spinner"></div>
+        </div>
+
+        <!-- Error Message -->
+        <div id="errorMessage" class="hidden max-w-3xl mx-auto mb-8">
+            <div class="bg-red-900/30 border border-red-500/50 text-red-200 px-6 py-4 rounded-xl text-center backdrop-blur-sm">
+                <i class="fas fa-exclamation-triangle mr-2 text-red-400"></i>
+                <span id="errorText"></span>
+            </div>
+        </div>
+
+        <!-- Results Section -->
+        <div id="resultsSection" class="hidden">
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+                <div>
+                    <h2 class="text-3xl font-bold text-white mb-2">
+                        Search Results
+                    </h2>
+                    <p class="text-gray-400">
+                        <span id="resultCount">0</span> results found
+                    </p>
+                </div>
+                <div class="flex gap-3">
+                    <button id="prevPage" class="px-6 py-3 bg-gray-800 text-white rounded-lg hover:bg-gray-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed border border-gray-700">
+                        <i class="fas fa-chevron-left mr-2"></i> Previous
+                    </button>
+                    <span id="pageInfo" class="px-6 py-3 text-gray-300 bg-gray-900 rounded-lg border border-gray-700"></span>
+                    <button id="nextPage" class="px-6 py-3 bg-gray-800 text-white rounded-lg hover:bg-gray-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed border border-gray-700">
+                        Next <i class="fas fa-chevron-right ml-2"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Movies Grid -->
+            <div id="moviesGrid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
+                <!-- Movie cards will be inserted here -->
+            </div>
+        </div>
+
+        <!-- No Results -->
+        <div id="noResults" class="hidden text-center py-16">
+            <div class="dark-card rounded-2xl p-12 max-w-lg mx-auto">
+                <div class="w-24 h-24 mx-auto mb-6 bg-gray-800 rounded-full flex items-center justify-center">
+                    <i class="fas fa-film text-3xl text-gray-500"></i>
+                </div>
+                <h3 class="text-2xl font-semibold text-white mb-4">No Results Found</h3>
+                <p class="text-gray-400 text-lg leading-relaxed">
+                    We couldn't find any movies or shows matching your search.
+                    Try different keywords or check your spelling.
+                </p>
+            </div>
+        </div>
+    </main>
+
+    <!-- Movie Detail Modal -->
+    <div id="movieModal" class="hidden fixed inset-0 modal-backdrop z-50 flex items-center justify-center p-4">
+        <div class="dark-card rounded-2xl max-w-5xl w-full max-h-[90vh] overflow-y-auto scrollbar-hide shadow-2xl">
+            <div class="p-8">
+                <div class="flex justify-between items-start mb-8">
+                    <h2 id="modalTitle" class="text-3xl font-bold text-white"></h2>
+                    <button id="closeModal" class="text-gray-400 hover:text-white text-2xl p-2 hover:bg-gray-800 rounded-lg transition-all">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div id="modalContent">
+                    <!-- Modal content will be inserted here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
